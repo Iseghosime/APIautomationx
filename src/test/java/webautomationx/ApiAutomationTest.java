@@ -1,6 +1,14 @@
 package webautomationx;
 
 import com.google.gson.Gson;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.http.options.Option;
+import com.mashape.unirest.http.options.Options;
+import kong.unirest.ObjectMapper;
+import kong.unirest.gson.GsonObjectMapper;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
@@ -24,10 +32,7 @@ public class ApiAutomationTest {
 
     @Test
     void jsonReadTest() throws UnsupportedEncodingException {
-        InputStream in = this.getClass().getClassLoader().getResourceAsStream("users.json");
-        Reader reader = new InputStreamReader(in, "UTF-8");
-        User[] users = gson.fromJson(reader, User[].class);
-
+        User[] users = Helper.usersFromJson(gson);
         Assertions.assertThat(users.length).isEqualTo(2);
 
         Assertions.assertThat(users[0].name).isEqualTo("admin");
@@ -38,8 +43,21 @@ public class ApiAutomationTest {
     }
 
     @Test
-    void usersCreationTest() throws UnsupportedEncodingException {
+    void usersCreationTest() throws UnsupportedEncodingException, UnirestException {
+        User[] users = Helper.usersFromJson(gson);
+        for (User user : users) {
+            HttpResponse<JsonNode> result = Unirest
+                    .post("https://reqres.in/api/users")
+                    .body(gson.toJson(user))
+                    .asJson();
 
+            Assertions.assertThat(result.getStatus()).isEqualTo(201);
+            Assertions.assertThat(result.getHeaders().getFirst("Content-Type")).isEqualTo("application/json; charset=utf-8");
+
+            GsonObjectMapper objectMapper = new GsonObjectMapper();
+            Response response = objectMapper.readValue(result.getBody().toString(), Response.class);
+            System.out.println(response);
+        }
     }
 
 }
